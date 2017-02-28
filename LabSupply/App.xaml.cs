@@ -20,111 +20,7 @@ namespace LabSupply
     /// </summary>
     /// 
 
-    /*
-     * E36103A
-     * MY56476536
-     * USB0::0x2A8D::0x0702::MY56476536::0::INSTR
-     * 
-     * E36104A
-     * MY55506105
-     * USB0::0x2A8D::0x0802::MY55506105::0::INSTR
-     * 
-     * E3633A
-     * unknown
-     * GPIB0::5::INSTR
-     */
-
-    public class KeySightInstrument
-    {
-        protected string ConnectionString;
-        protected ResourceManager rm;
-        public FormattedIO488 ioobj;
-
-        protected KeySightInstrument()
-        {
-            
-        }
-
-        /*
-        ~KeySightInstrument()
-        {
-            Close();
-        }
-        */
-
-        protected void Open(string ConnectionString)
-        {
-            this.ConnectionString = ConnectionString;
-            rm = new ResourceManager();
-            ioobj = new FormattedIO488();
-            ioobj.IO = (Ivi.Visa.Interop.IMessage)rm.Open(ConnectionString, AccessMode.NO_LOCK, 0, "");
-        }
-
-        protected void Close()
-        {
-            try
-            {
-                ioobj.IO.Close();
-            }
-            catch { }
-            try
-            {
-                System.Runtime.InteropServices.Marshal.ReleaseComObject(ioobj);
-            }
-            catch { }
-            try
-            {
-                System.Runtime.InteropServices.Marshal.ReleaseComObject(rm);
-            }
-            catch { }
-        }
-            
-        public void SendString(string Message)
-        {
-            ioobj.WriteString(Message, true);
-        }
-
-        public string ReadString()
-        {
-            try
-            {   
-                return ioobj.ReadString();
-            }
-            catch (Exception e)
-            {
-                return e.Message;
-            }
-        }
-
-        public double ReadDouble()
-        {
-            try
-            {
-                return (double) ioobj.ReadNumber();
-            }
-            catch (Exception e)
-            {
-                return -9.999;
-            }
-        }
-
-        public bool ReadBool()
-        {
-            try
-            {
-                if (ioobj.ReadNumber() == 1)
-                    return true;
-                else
-                    return false;
-            }
-            catch (Exception e)
-            {
-                return false;
-            }
-        }
-    }
-
-    public class KeySightLabSupply : KeySightInstrument
+    public class KeySightLabSupply : Instrument.KeysightInstrument
     {
 
         public KeySightLabSupply(string ConnectionString)
@@ -228,6 +124,7 @@ namespace LabSupply
     {
         private KeySightLabSupply supply;
         DispatcherTimer timer;
+        uint timerTickCount = 0;
         private UiCommand buttonCommand;
         private DateTime ConnectedTimestamp = DateTime.Now;
         public string ActivityLogTxt { get; private set; }
@@ -241,7 +138,7 @@ namespace LabSupply
 
         public LabSupplyViewModel()
         {
-            supply = new KeySightLabSupply("USB0::0x2A8D::0x0702::MY56476536::0::INSTR");
+            supply = new KeySightLabSupply("GPIB0::5::INSTR");
             /*
             _SetCurrent = 0.0;
             SetCurrent = supply.SetCurrent;
@@ -400,8 +297,16 @@ namespace LabSupply
                 }
                 PropertyChanged(this, new PropertyChangedEventArgs("OutputOn"));
                 PropertyChanged(this, new PropertyChangedEventArgs("ActivityLogTxt"));
-                PropertyChanged(this, new PropertyChangedEventArgs("MeasuredVoltageTxt"));
-                PropertyChanged(this, new PropertyChangedEventArgs("MeasuredCurrentTxt"));
+                if (timerTickCount == 5)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("MeasuredVoltageTxt"));
+                }
+                if(timerTickCount == 10)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("MeasuredCurrentTxt"));
+                    timerTickCount = 0;
+                }
+                ++timerTickCount;
             }
         }
 
